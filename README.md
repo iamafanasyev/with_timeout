@@ -1,5 +1,7 @@
 # WithTimeout
 
+[![Elixir CI](https://github.com/iamafanasyev/with_timeout/actions/workflows/elixir.yml/badge.svg)](https://github.com/iamafanasyev/with_timeout/actions/workflows/elixir.yml)
+
 Both total and time limited evaluation of expressions
 
 ## Usage
