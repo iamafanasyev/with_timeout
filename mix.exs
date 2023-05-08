@@ -2,7 +2,7 @@ defmodule WithTimeout.MixProject do
   use Mix.Project
 
   @name "WithTimeout"
-  @version "0.1.0"
+  @version "0.1.1"
   @description "Both total and time limited evaluation of expressions"
   @repo_url "https://github.com/iamafanasyev/with_timeout"
 
