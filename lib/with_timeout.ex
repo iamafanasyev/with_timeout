@@ -79,59 +79,40 @@ defmodule WithTimeout do
         with_evaluation_shutdown_timeout_in_milliseconds:
           with_evaluation_shutdown_timeout_in_milliseconds
       ) do
-    [evaluation_result] =
-      Stream.resource(
-        fn ->
-          {:ok, acquired_local_task_supervisor_pid} = Task.Supervisor.start_link()
+    Resource.create(
+      acquire: fn ->
+        {:ok, acquired_local_task_supervisor_pid} = Task.Supervisor.start_link()
+        acquired_local_task_supervisor_pid
+      end,
+      release: &Process.exit(&1, :normal)
+    )
+    |> Resource.use!(fn acquired_local_task_supervisor_pid ->
+      supervised_by_local_task_supervisor_task =
+        Task.Supervisor.async_nolink(
+          acquired_local_task_supervisor_pid,
+          lazy_expression,
+          # evaluate/3 caller shutdown -> local task supervisor shutdown -> lazy expression evaluation shutdown
+          shutdown: with_evaluation_shutdown_timeout_in_milliseconds
+        )
 
-          [evaluate_expression_using: acquired_local_task_supervisor_pid]
-        end,
-        fn
-          [evaluate_expression_using: acquired_local_task_supervisor_pid]
-          when is_pid(acquired_local_task_supervisor_pid) ->
-            supervised_by_local_task_supervisor_task =
-              Task.Supervisor.async_nolink(
-                acquired_local_task_supervisor_pid,
-                lazy_expression,
-                # evaluate/3 caller shutdown -> local task supervisor shutdown -> lazy expression evaluation shutdown
-                shutdown: with_evaluation_shutdown_timeout_in_milliseconds
-              )
+      case Task.yield(supervised_by_local_task_supervisor_task, within_milliseconds) ||
+             Task.shutdown(
+               supervised_by_local_task_supervisor_task,
+               with_evaluation_shutdown_timeout_in_milliseconds
+             ) do
+        {:ok, evaluated_expression} ->
+          {:ok, evaluated_expression}
 
-            {
-              [
-                case Task.yield(supervised_by_local_task_supervisor_task, within_milliseconds) ||
-                       Task.shutdown(
-                         supervised_by_local_task_supervisor_task,
-                         with_evaluation_shutdown_timeout_in_milliseconds
-                       ) do
-                  {:ok, evaluated_expression} ->
-                    {:ok, evaluated_expression}
+        nil ->
+          {:error, :timeout}
 
-                  nil ->
-                    {:error, :timeout}
+        {:exit, {exception, stacktrace}}
+        when is_exception(exception) and is_list(stacktrace) ->
+          {:error, {:exception, exception, stacktrace}}
 
-                  {:exit, {exception, stacktrace}}
-                  when is_exception(exception) and is_list(stacktrace) ->
-                    {:error, {:exception, exception, stacktrace}}
-
-                  {:exit, reason} ->
-                    {:error, {:exit, reason}}
-                end
-              ],
-              [shutdown: acquired_local_task_supervisor_pid]
-            }
-
-          [shutdown: acquired_local_task_supervisor_pid]
-          when is_pid(acquired_local_task_supervisor_pid) ->
-            {:halt, [shutdown: acquired_local_task_supervisor_pid]}
-        end,
-        fn [shutdown: acquired_local_task_supervisor_pid]
-           when is_pid(acquired_local_task_supervisor_pid) ->
-          Process.exit(acquired_local_task_supervisor_pid, :normal)
-        end
-      )
-      |> Enum.to_list()
-
-    evaluation_result
+        {:exit, reason} ->
+          {:error, {:exit, reason}}
+      end
+    end)
   end
 end
