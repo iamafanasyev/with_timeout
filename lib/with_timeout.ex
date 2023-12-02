@@ -4,7 +4,7 @@ defmodule WithTimeout do
   """
 
   @typedoc "Any anonymous function without arguments"
-  @type lazy_expression(a) :: (() -> a)
+  @type lazy_expression(a) :: (-> a)
 
   @typedoc "Evaluation time limit in milliseconds"
   @type evaluation_timeout_in_milliseconds() :: pos_integer()
