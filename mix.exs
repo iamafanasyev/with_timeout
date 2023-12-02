@@ -25,7 +25,7 @@ defmodule WithTimeout.MixProject do
   defp deps() do
     [
       {:ex_doc, "~> 0.29", only: :dev, runtime: false},
-      {:resource, "~> 0.1.0"}
+      {:resource, "~> 1.0.0"}
     ]
   end
 
